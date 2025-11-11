@@ -78,5 +78,9 @@ def list_cities() -> str:
     return json.dumps({"cities": weather_data, "timestamp": datetime.now().isoformat()}, indent=2)
 
 if __name__ == "__main__":
+    # Configure for Render deployment
+    os.environ.setdefault("HOST", "0.0.0.0")
+    os.environ.setdefault("PORT", "8000")
+    
     # Run the server
     mcp.run(transport="sse")
