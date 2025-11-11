@@ -1,29 +1,48 @@
 #!/usr/bin/env python3
 """
-FastMCP Weather Server
-A simple weather MCP server with mock data
+FastAPI Weather Server
+A simple weather API server with mock data
 """
 
 import json
 import os
 from datetime import datetime, timedelta
 import random
-from mcp.server.fastmcp import FastMCP
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
-# Initialize FastMCP server
-mcp = FastMCP("Weather")
+# Initialize FastAPI app
+app = FastAPI(title="Weather API", version="1.0.0")
 
-@mcp.tool()
-def get_weather(city: str) -> str:
-    """Get current weather for a city
-    
-    Args:
-        city: Name of the city (e.g., 'London', 'Tokyo', 'New York')
-    """
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+async def root():
+    return {
+        "name": "Weather API",
+        "version": "1.0.0",
+        "endpoints": {
+            "weather": "/weather/{city}",
+            "forecast": "/forecast/{city}",
+            "cities": "/cities"
+        }
+    }
+
+@app.get("/weather/{city}")
+async def get_weather(city: str):
+    """Get current weather for a city"""
     temp = random.randint(15, 30)
     conditions = ["Sunny", "Cloudy", "Rainy", "Partly Cloudy"]
     
-    weather = {
+    return {
         "city": city,
         "temperature": f"{temp}°C",
         "condition": random.choice(conditions),
@@ -31,17 +50,10 @@ def get_weather(city: str) -> str:
         "wind": f"{random.randint(5, 25)} km/h",
         "timestamp": datetime.now().isoformat()
     }
-    
-    return json.dumps(weather, indent=2)
 
-@mcp.tool()
-def get_forecast(city: str, days: int = 3) -> str:
-    """Get weather forecast for a city
-    
-    Args:
-        city: Name of the city
-        days: Number of days (1-7, default: 3)
-    """
+@app.get("/forecast/{city}")
+async def get_forecast(city: str, days: int = 3):
+    """Get weather forecast for a city"""
     days = max(1, min(days, 7))
     forecast = []
     
@@ -55,15 +67,13 @@ def get_forecast(city: str, days: int = 3) -> str:
             "condition": random.choice(["Sunny", "Cloudy", "Rainy"])
         })
     
-    result = {
+    return {
         "city": city,
         "forecast": forecast
     }
-    
-    return json.dumps(result, indent=2)
 
-@mcp.resource("weather://cities")
-def list_cities() -> str:
+@app.get("/cities")
+async def list_cities():
     """List of major cities with current weather"""
     cities = ["London", "Tokyo", "New York", "Paris", "Sydney"]
     weather_data = []
@@ -75,12 +85,11 @@ def list_cities() -> str:
             "condition": random.choice(["Sunny", "Cloudy", "Rainy"])
         })
     
-    return json.dumps({"cities": weather_data, "timestamp": datetime.now().isoformat()}, indent=2)
+    return {
+        "cities": weather_data,
+        "timestamp": datetime.now().isoformat()
+    }
 
 if __name__ == "__main__":
-    # Configure for Render deployment
-    os.environ.setdefault("HOST", "0.0.0.0")
-    os.environ.setdefault("PORT", "8000")
-    
-    # Run the server
-    mcp.run(transport="sse")
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
